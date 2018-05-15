@@ -1,0 +1,105 @@
+// 
+//
+// 
+pipeline {
+  agent any
+  parameters {
+      choice(name: 'parameter1', choices: 'project-a\nproject-b', description: 'Something1')
+      string(name: 'parameters2',defaultValue: '', description: 'Something2')
+  } // end of parameters
+  environment {
+      env_a ='prod'
+      env_b ='dev'
+  } // end of environment
+  stages { 
+      stage("Build code"){
+        when {  expression { parameters1 == 'prod' } }
+        steps {
+          script {
+            echo "Check repo"
+            withCredentials([usernameColonPassword(credentialsId:'git_jenkins',variable: 'git_login')]){
+                echo ""
+                sh '''
+                  echo "Git cloning"
+                 '''
+                }//with Credential
+          } //end of scripts
+        }  //end of steps
+       } // end of steps 
+      stage("Deploying") {
+          when {  expression { env_a == 'prod' } }
+          steps {
+              echo "Use Ansible to Deploying... " 
+              script {
+                  withCredentials([file(credentialsId:'ansible_vault_pass',variable: 'ansible_vault_pass')]){
+                      ansiblePlaybook( 
+                        playbook: '',
+                        inventory: '', 
+                        limit: '',
+                        credentialsId: 'ansible_deploy',
+                        tags: '',
+                        extras: '--vault-password-file '+ ansible_vault_pass, 
+                      )// end of ansibleplaybook
+                }// end of withCredential
+              }// end of script
+
+          } //end of steps
+          post {
+                
+            failure {
+
+                  script {
+                     sh '''
+                      echo "Deploy Failed !!! :("
+                     '''
+                  } //end of script
+
+              }//end of failure
+
+            // for success
+            success {
+
+              script {
+                     sh '''
+                      echo "Deploy Success!!! :)"
+                     '''
+          
+                 }// end of script
+            }//end of success
+
+          }//end post
+
+      } // end of stage
+
+      stage("Testing: Run Auto Testing") {
+          when {  expression { env_b == 'dev' } }
+          steps {
+              echo "Testing...... " 
+              script {
+                "something-for testing"
+              }// end of script
+          } //end of steps
+          post {
+            failure {
+
+                  script {
+                     sh '''
+                      echo "Test Failed !!! <_<"
+                     '''
+                  } //end of script
+
+              }//end of failure
+
+            // for success
+            success {
+
+              script {
+                     sh '''
+                      echo "Test Success !!! ^_^"
+                     '''
+                 }// end of script
+            }//end of success
+          }//end post
+      } // end of stage
+  } //end of stages 
+} // end of pipeline
